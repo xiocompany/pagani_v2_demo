@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from tensorflow.keras.models import load_model
 
 # Define trading fee (for example 0.1% fee per trade)
-TRADING_FEE = 0.001
+TRADING_FEE = 0.002
 
 # Load model and scalers
 scaler_X = joblib.load('scaler_X.pkl')
