@@ -128,7 +128,9 @@ def add_static_features(data):
 def build_model(input_shape, output_shape, lstm_units=100, dropout_rate=0.3, learning_rate=0.0005):
     input_layer = Input(shape=input_shape)
     x = Bidirectional(LSTM(lstm_units, return_sequences=True))(input_layer)
-    x, attention = Attention()([x, x])
+
+    attention = Attention()([x, x])  # Only one output from Attention
+
     x = Dropout(dropout_rate)(attention)
     x = Flatten()(x)
     x = Dense(100, activation='relu')(x)
@@ -207,4 +209,4 @@ def main(data_path):
 
 
 if __name__ == "__main__":
-    main(r'D:\project\crypto my self\Data_Set\BTCUSDT_ohlc_data_1min.csv')
+    main(r'BTCUSDT_ohlc_data_1min.csv')
