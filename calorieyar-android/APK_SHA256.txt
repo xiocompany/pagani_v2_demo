@@ -1,1 +1,0 @@
-4d3502403195c1382f5f2c89e76cce6f97e643874aad5454e526dc20318d0a47  calorieyar-android/app/build/outputs/apk/debug/app-debug.apk
