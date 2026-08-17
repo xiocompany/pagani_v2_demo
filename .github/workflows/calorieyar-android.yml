@@ -15,7 +15,7 @@ permissions:
 jobs:
   verify-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
 
     steps:
       - name: Checkout branch
@@ -77,6 +77,24 @@ jobs:
           ls -lh "$APK"
           sha256sum "$APK" | tee calorieyar-android/APK_SHA256.txt
 
+      - name: Emulator install and launch smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            set -e
+            adb install -r calorieyar-android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am force-stop com.nemove.calorieyar
+            adb shell am start -W -n com.nemove.calorieyar/.MainActivity
+            sleep 2
+            adb shell pidof com.nemove.calorieyar
+            adb shell dumpsys activity activities | grep -F 'com.nemove.calorieyar/.MainActivity'
+            adb exec-out screencap -p > calorieyar-android/emulator-home.png
+            test -s calorieyar-android/emulator-home.png
+
       - name: Publish APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -84,6 +102,14 @@ jobs:
           path: |
             calorieyar-android/app/build/outputs/apk/debug/app-debug.apk
             calorieyar-android/APK_SHA256.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish emulator evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: CalorieYar-V1-emulator-smoke-test
+          path: calorieyar-android/emulator-home.png
           if-no-files-found: error
           retention-days: 30
 
@@ -103,6 +129,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -f calorieyar-android/emulator-home.png calorieyar-android/APK_SHA256.txt
           git config user.name "calorieyar-ci"
           git config user.email "actions@users.noreply.github.com"
           git add calorieyar-android
