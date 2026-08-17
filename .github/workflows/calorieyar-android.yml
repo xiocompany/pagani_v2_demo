@@ -1,0 +1,112 @@
+name: CalorieYar Android V1 CI
+
+on:
+  push:
+    branches: [ "calorieyar-v1" ]
+    paths:
+      - "ci/calorieyar-v1.tar.gz.b64"
+      - "calorieyar-android/**"
+      - ".github/workflows/calorieyar-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: calorieyar-v1
+
+      - name: Restore versioned Android source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf calorieyar-android _calorieyar_extract
+          mkdir -p _calorieyar_extract
+          base64 -d ci/calorieyar-v1.tar.gz.b64 > /tmp/calorieyar-v1.tar.gz
+          tar -xzf /tmp/calorieyar-v1.tar.gz -C _calorieyar_extract
+          mv _calorieyar_extract/calorie_yar_android calorieyar-android
+          rm -rf _calorieyar_extract
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 35
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Unit tests
+        working-directory: calorieyar-android
+        run: gradle --no-daemon :app:testDebugUnitTest --stacktrace
+
+      - name: Android lint
+        working-directory: calorieyar-android
+        run: gradle --no-daemon :app:lintDebug --stacktrace
+
+      - name: Build installable debug APK
+        working-directory: calorieyar-android
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Verify APK output
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="calorieyar-android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          ls -lh "$APK"
+          sha256sum "$APK" | tee calorieyar-android/APK_SHA256.txt
+
+      - name: Publish APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CalorieYar-V1-installable-debug-apk
+          path: |
+            calorieyar-android/app/build/outputs/apk/debug/app-debug.apk
+            calorieyar-android/APK_SHA256.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CalorieYar-V1-QA-reports
+          path: |
+            calorieyar-android/app/build/reports/tests/testDebugUnitTest/**
+            calorieyar-android/app/build/reports/lint-results-debug.html
+            calorieyar-android/app/build/reports/lint-results-debug.xml
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Commit readable source tree after successful verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "calorieyar-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add calorieyar-android
+          if git diff --cached --quiet; then
+            echo "Readable source tree already up to date."
+          else
+            git commit -m "chore(calorieyar): publish verified V1 Android source"
+            git push origin HEAD:calorieyar-v1
+          fi
