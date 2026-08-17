@@ -97,7 +97,7 @@ jobs:
             adb shell pm grant "$PACKAGE" android.permission.POST_NOTIFICATIONS || true
             adb logcat -c
             adb shell am force-stop "$PACKAGE"
-            adb shell am start -W -n "$PACKAGE/.MainActivity" || true
+            adb shell am start -W -n "$PACKAGE/.MainActivity"
 
             rendered=0
             for i in $(seq 1 15); do
@@ -113,7 +113,7 @@ jobs:
 
             adb shell pidof "$PACKAGE"
             adb shell dumpsys activity activities | grep -F "$PACKAGE/.MainActivity"
-            if adb logcat -d -v brief | grep -E 'FATAL EXCEPTION|ANR in com\.nemove\.calorieyar'; then
+            if adb logcat -d -v brief | grep -E 'Process: com\.nemove\.calorieyar|ANR in com\.nemove\.calorieyar'; then
               echo "Crash/ANR detected in CalorieYar" >&2
               exit 1
             fi
@@ -125,9 +125,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf calorieyar-android/app/build calorieyar-android/.gradle
-          rm -f calorieyar-android/emulator-home.png calorieyar-android/emulator-window.xml calorieyar-android/APK_SHA256.txt
-          (cd calorieyar-android && zip -qr ../CalorieYar-Android-V1-Verified-Source.zip . -x '*.iml')
+          rm -rf /tmp/calorieyar-portable
+          cp -a calorieyar-android /tmp/calorieyar-portable
+          rm -rf /tmp/calorieyar-portable/app/build /tmp/calorieyar-portable/.gradle
+          rm -f /tmp/calorieyar-portable/emulator-home.png /tmp/calorieyar-portable/emulator-window.xml /tmp/calorieyar-portable/APK_SHA256.txt
+          (cd /tmp/calorieyar-portable && zip -qr "$GITHUB_WORKSPACE/CalorieYar-Android-V1-Verified-Source.zip" . -x '*.iml')
           unzip -l CalorieYar-Android-V1-Verified-Source.zip | grep -F 'gradlew'
           unzip -l CalorieYar-Android-V1-Verified-Source.zip | grep -F 'gradle/wrapper/gradle-wrapper.jar'
 
@@ -175,6 +177,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -f calorieyar-android/emulator-home.png calorieyar-android/emulator-window.xml calorieyar-android/APK_SHA256.txt
           git config user.name "calorieyar-ci"
           git config user.email "actions@users.noreply.github.com"
           git add calorieyar-android
