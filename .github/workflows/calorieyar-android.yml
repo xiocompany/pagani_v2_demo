@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "calorieyar-v1" ]
     paths:
-      - "ci/calorieyar-v1.tar.gz.b64"
+      - "ci/calorieyar-v1.part-*.b64"
       - "calorieyar-android/**"
       - ".github/workflows/calorieyar-android.yml"
   workflow_dispatch:
@@ -23,13 +23,15 @@ jobs:
         with:
           ref: calorieyar-v1
 
-      - name: Restore versioned Android source
+      - name: Restore and verify versioned Android source
         shell: bash
         run: |
           set -euo pipefail
           rm -rf calorieyar-android _calorieyar_extract
           mkdir -p _calorieyar_extract
-          base64 -d ci/calorieyar-v1.tar.gz.b64 > /tmp/calorieyar-v1.tar.gz
+          cat ci/calorieyar-v1.part-*.b64 > /tmp/calorieyar-v1.tar.gz.b64
+          base64 -d /tmp/calorieyar-v1.tar.gz.b64 > /tmp/calorieyar-v1.tar.gz
+          echo "a86f89cac9edca0d82f6b0407a20ed6304d66ba33f064e1a9bd54293c5a31fdf  /tmp/calorieyar-v1.tar.gz" | sha256sum -c -
           tar -xzf /tmp/calorieyar-v1.tar.gz -C _calorieyar_extract
           mv _calorieyar_extract/calorie_yar_android calorieyar-android
           rm -rf _calorieyar_extract
